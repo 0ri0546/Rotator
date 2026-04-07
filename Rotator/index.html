@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Rotateur</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #060a12;
+    --bg2:      #0b1120;
+    --bg3:      #0f1a2e;
+    --blue:     #00c8ff;
+    --blue-dim: rgba(0,200,255,0.08);
+    --blue-mid: rgba(0,200,255,0.18);
+    --blue-hi:  rgba(0,200,255,0.35);
+    --text:     #d0eeff;
+    --muted:    #3a6080;
+    --border:   rgba(0,200,255,0.15);
+    --border2:  rgba(0,200,255,0.3);
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; user-select: none; }
+
+  body { display: flex; flex-direction: column; height: 100vh; }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    -webkit-app-region: drag;
+    position: relative;
+    z-index: 10;
+    padding: 0 16px 0 120px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--blue);
+    text-transform: uppercase;
+    flex-shrink: 0;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    text-shadow: 0 0 14px rgba(0,200,255,0.55);
+  }
+
+  .url-bar {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    -webkit-app-region: no-drag;
+  }
+
+  #url-input {
+    flex: 1;
+    height: 32px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0 12px;
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  #url-input::placeholder { color: var(--muted); }
+  #url-input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(0,200,255,0.1), inset 0 0 8px rgba(0,200,255,0.04);
+  }
+
+  .btn-go {
+    height: 32px;
+    padding: 0 18px;
+    background: transparent;
+    border: 1px solid var(--blue);
+    border-radius: 3px;
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    transition: background 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+  .btn-go:hover { background: var(--blue-dim); box-shadow: 0 0 14px rgba(0,200,255,0.2); }
+  .btn-go:active { transform: scale(0.97); }
+
+  .rot-panel {
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    padding-left: 14px;
+  }
+
+  .angle-badge {
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--blue);
+    min-width: 46px;
+    text-align: right;
+    text-shadow: 0 0 10px rgba(0,200,255,0.45);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 160px;
+    height: 3px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--blue);
+    box-shadow: 0 0 10px rgba(0,200,255,0.7);
+    cursor: pointer;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { box-shadow: 0 0 18px rgba(0,200,255,1); }
+
+  .rot-presets { display: flex; gap: 4px; }
+
+  .preset-btn {
+    height: 26px;
+    padding: 0 9px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .preset-btn:hover { border-color: var(--border2); color: var(--text); }
+  .preset-btn.active { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+
+  /* viewer */
+  .viewer {
+    flex: 1;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #03060f;
+  }
+
+  .viewer::before, .viewer::after {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-color: var(--blue-hi);
+    border-style: solid;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .viewer::before { top: 10px; left: 10px; border-width: 1px 0 0 1px; }
+  .viewer::after  { bottom: 10px; right: 10px; border-width: 0 1px 1px 0; }
+
+  webview {
+    display: flex;
+    border: none;
+    transform-origin: center center;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .placeholder {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .ph-ring {
+    width: 66px;
+    height: 66px;
+    border: 1px solid var(--border2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--blue);
+    position: relative;
+  }
+  .ph-ring::before {
+    content: '';
+    position: absolute;
+    inset: -7px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    border-top-color: var(--blue);
+    animation: spin 3s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .placeholder h2 { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; }
+  .placeholder p  { font-size: 11px; line-height: 2; color: #1e3a55; font-family: 'Cascadia Code', 'Consolas', monospace; }
+
+  .scanline {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(to bottom, transparent, transparent 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
+    pointer-events: none;
+    z-index: 15;
+  }
+
+  .kb {
+    position: absolute;
+    bottom: 10px;
+    right: 12px;
+    font-size: 10px;
+    color: #1a3050;
+    z-index: 20;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">⟳ Rotateur</span>
+  <div class="url-bar">
+    <input id="url-input" type="text" placeholder="youtube.com/watch?v=...  ·  cinechill.ovh/watch/serie/...  ·  n'importe quel site" />
+    <button class="btn-go" onclick="navigate()">Charger</button>
+  </div>
+  <div class="rot-panel">
+    <input type="range" id="slider" min="0" max="360" value="0" step="1" oninput="onSlider()" />
+    <div class="rot-presets">
+      <button class="preset-btn active" onclick="setAngle(0)"   id="pre-0">0°</button>
+      <button class="preset-btn"        onclick="setAngle(90)"  id="pre-90">90°</button>
+      <button class="preset-btn"        onclick="setAngle(180)" id="pre-180">180°</button>
+      <button class="preset-btn"        onclick="setAngle(270)" id="pre-270">270°</button>
+    </div>
+    <div class="angle-badge" id="badge">0°</div>
+  </div>
+</header>
+
+<div class="viewer" id="viewer">
+  <div class="placeholder" id="placeholder">
+    <div class="ph-ring">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+        <rect x="2" y="5" width="20" height="15" rx="2"/>
+        <path d="M10 9l5 3-5 3V9z" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+    <h2>Entre une URL et charge</h2>
+    <p>youtube.com · twitch.tv · cinechill.ovh<br>netflix.com · n'importe quel site</p>
+  </div>
+
+  <webview id="wv" style="display:none; width:100%; height:100%;"
+    allowpopups
+    useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36">
+  </webview>
+
+  <div class="scanline"></div>
+  <div class="kb">← → rotation · Enter charger</div>
+</div>
+
+<script>
+  let angle = 0
+
+  function normalizeUrl(raw) {
+    raw = raw.trim()
+    if (!raw.startsWith('http')) raw = 'https://' + raw
+    return raw
+  }
+
+  function navigate() {
+    const raw = document.getElementById('url-input').value
+    if (!raw.trim()) return
+    const wv = document.getElementById('wv')
+    wv.src = normalizeUrl(raw)
+    wv.style.display = 'flex'
+    document.getElementById('placeholder').style.display = 'none'
+    applyTransform()
+  }
+
+  function onSlider() {
+    angle = parseInt(document.getElementById('slider').value)
+    document.getElementById('badge').textContent = angle + '°'
+    updatePresets()
+    applyTransform()
+  }
+
+  function setAngle(a) {
+    angle = a
+    document.getElementById('slider').value = a
+    document.getElementById('badge').textContent = a + '°'
+    updatePresets()
+    applyTransform()
+  }
+
+  function updatePresets() {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'))
+    const el = document.getElementById('pre-' + angle)
+    if (el) el.classList.add('active')
+  }
+
+  function applyTransform() {
+    const wv = document.getElementById('wv')
+    const viewer = document.getElementById('viewer')
+    const vw = viewer.offsetWidth
+    const vh = viewer.offsetHeight
+    const rad = angle * Math.PI / 180
+    const cos = Math.abs(Math.cos(rad))
+    const sin = Math.abs(Math.sin(rad))
+    const scale = Math.min(vw / (vw * cos + vh * sin), vh / (vw * sin + vh * cos))
+    wv.style.width  = vw + 'px'
+    wv.style.height = vh + 'px'
+    wv.style.transform = `rotate(${angle}deg) scale(${scale})`
+  }
+
+  window.addEventListener('resize', () => {
+    if (document.getElementById('wv').style.display !== 'none') applyTransform()
+  })
+
+  document.getElementById('url-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') navigate()
+  })
+
+  document.addEventListener('keydown', e => {
+    if (e.target === document.getElementById('url-input')) return
+    if (e.key === 'ArrowRight') setAngle((angle + 90) % 360)
+    if (e.key === 'ArrowLeft')  setAngle((angle + 270) % 360)
+  })
+</script>
+</body>
+</html>
